@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=1080, user-scalable=yes" />
     <title>Train Timetable</title>
     <style>
         :root {
@@ -94,6 +94,10 @@
             display: flex;
         }
 
+        .ExLampeggio_classtd{
+            width: 63;
+        }
+
         @keyframes scrollText {
             from {
                 transform: translateX(10vw);
@@ -125,7 +129,7 @@
 
 <script>
     // Fetch data from backend URL
-    function trenitalia() {
+    function getTrenitalia() {
         const url = 'https://iechub.rfi.it/ArriviPartenze/ArrivalsDepartures/Monitor?placeId=683&arrivals=False';
         const corsProxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
         $.get(corsProxy, function(data) {
@@ -140,7 +144,7 @@
             doc.getElementById("HOrario").innerHTML = "Orario<br><small>Time</small>"
             doc.getElementById("HRitardo").innerHTML = "Ritardo <small>previsto</small>"
             doc.getElementById("HBinario").innerHTML = "Binario<br><small>Platform</small>"
-            doc.getElementById("HInArrivo").innerHTML = "&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp"
+            doc.getElementById("HInArrivo").innerHTML = ""
 
             Array.prototype.forEach.call(doc.getElementsByClassName("exlampeggio"), function(item) {
                 item.src = "img/" + item.src.split('/').pop().toLowerCase();
@@ -175,6 +179,9 @@
                 const currentTable = document.getElementById('trainTimetable').getElementsByTagName('tbody')[0];
                 currentTable.innerHTML = extractedTable.innerHTML;
             }
+
+            getTrenitaliaDelay();
+            getItaloDelay();
         });
     }
 
@@ -199,30 +206,51 @@
         return encodeURIComponent(formattedDate);
     }
 
-    function ritardi() {
+    function getTrenitaliaDelay() {
         const url = 'http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno/partenze/S05043/' + getFormattedDate();
-        const corsProxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+        //const corsProxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+        const corsProxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
 
         $.getJSON(corsProxy, function(response) {
-            const dataContents = response.contents;
-
-            // Parse the contents, since it's expected to be a JSON string
-            const jsonData = JSON.parse(dataContents);
+            //const dataContents = response.contents;
+            //const jsonData = JSON.parse(dataContents);
             const tableBody = document.getElementById('trainTimetable');
-
-            jsonData.forEach(item => {
+            response.forEach(item => {
                 var rows = tableBody.querySelectorAll("tr");
 
                 rows.forEach(function(row) {
                     if (item.numeroTreno == row.cells[2].textContent)
-                        if (item.ritardo > 0)
+                        if (item.ritardo >= 5)
                             row.cells[6].textContent = item.ritardo + "'";
                 });
             });
         });
     }
 
-    function viaggiaTreno() {
+    function getItaloDelay() {
+        const url = 'https://italoinviaggio.italotreno.it/api/RicercaTrenoService?TrainNumber=';
+        
+
+        const tableBody = document.getElementById('trainTimetable');
+        const rows = tableBody.querySelectorAll("tr");
+        rows.forEach(function(row) {
+            if (row.querySelectorAll('img').length > 0 && row.querySelectorAll('img')[0].alt == "ITALO"){
+                const corsProxy = 'https://corsproxy.io/?' + encodeURIComponent(url + row.cells[2].textContent);
+                $.getJSON(corsProxy, function(response) {
+                    //const dataContents = response.contents;
+                    //const jsonData = JSON.parse(dataContents);
+                    const ritardo = response.TrainSchedule.Distruption.DelayAmount
+                    console.log(ritardo);
+                    if (ritardo >= 5)
+                        row.cells[6].textContent = ritardo + "'";
+                });
+            }
+        });
+
+
+    }
+
+    function getViaggiaTreno() {
         const url = 'http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno/partenze/S05043/' + getFormattedDate();
         const corsProxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
 
@@ -299,11 +327,9 @@
     }
 
 // Call fetchData when needed
-trenitalia();
-ritardi();
+getTrenitalia();
 updateDate();
-setInterval(trenitalia, 60000)
-setInterval(ritardi, 60000)
+setInterval(getTrenitalia, 60000)
 setInterval(updateDate, 60000)
 </script>
 
